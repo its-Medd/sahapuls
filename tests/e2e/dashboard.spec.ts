@@ -235,6 +235,7 @@ test('device inventory search and health filters provide clear, resettable resul
 });
 test('analytics uses range-aware backend statistics and handles missing windows', async ({
   page,
+  request,
 }) => {
   // Register the waiter before navigation so even a fast analytics response is captured.
   const [response] = await Promise.all([
@@ -243,7 +244,11 @@ test('analytics uses range-aware backend statistics and handles missing windows'
     ),
     page.goto('/#analytics'),
   ]);
-  const data = await response.json();
+  // Startup effects can cancel a duplicate browser fetch after its headers arrive.
+  // Query the same device and fixed time window without relying on that browser body.
+  const expected = await request.get(response.url());
+  expect(expected.ok()).toBe(true);
+  const data = await expected.json();
   await expect(page.locator('.analytics-statistics>div').first().locator('strong')).toContainText(
     String(data.statistics.temperatureC.avg),
   );
