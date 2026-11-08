@@ -2,9 +2,11 @@ import type { Server as HttpServer } from 'node:http';
 import { Server as SocketIoServer } from 'socket.io';
 import type { DashboardDatabase } from '../db/database.js';
 import type { RealtimeEmitter } from '../ingest.js';
-import type { AlertRecord, ReadingRecord, Severity } from '../types.js';
+import type { AlertRecord, NodeRecord, ReadingRecord, Severity } from '../types.js';
+import { isAllowedOrigin } from '../origins.js';
 
 export interface ServerToClientEvents {
+  node: (node: NodeRecord) => void;
   reading: (reading: ReadingRecord) => void;
   alert: (alert: AlertRecord) => void;
   'node-status': (payload: { nodeId: string; status: Severity }) => void;
@@ -22,18 +24,22 @@ export function createSocketServer(
   corsOrigin: string,
 ): { io: SocketIoServer<object, ServerToClientEvents>; emitter: RealtimeEmitter } {
   const io = new SocketIoServer<object, ServerToClientEvents>(httpServer, {
-    cors: { origin: corsOrigin },
+    cors: { origin: (origin, callback) => callback(null, isAllowedOrigin(origin, corsOrigin)) },
+    allowRequest: (request, callback) =>
+      callback(null, isAllowedOrigin(request.headers.origin, corsOrigin)),
   });
 
   io.on('connection', (socket) => {
     // Push a snapshot of current node state on connect so the dashboard
     // doesn't have to wait for the next telemetry tick to render anything.
     for (const node of db.getNodes()) {
+      socket.emit('node', node);
       socket.emit('node-status', { nodeId: node.nodeId, status: node.status });
     }
   });
 
   const emitter: RealtimeEmitter = {
+    emitNode: (node) => io.emit('node', node),
     emitReading: (reading) => io.emit('reading', reading),
     emitAlert: (alert) => io.emit('alert', alert),
     emitNodeStatus: (nodeId, status) => io.emit('node-status', { nodeId, status }),

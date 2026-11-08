@@ -13,6 +13,31 @@ export interface AggregatedBucket {
   humidityPct: MetricStats;
   gasPpm: MetricStats;
   batteryPct: MetricStats;
+  soilMoisturePct: MetricStats | null;
+  waterLevelCm: MetricStats | null;
+}
+
+export const SENSOR_METRICS = [
+  'temperatureC',
+  'humidityPct',
+  'gasPpm',
+  'batteryPct',
+  'soilMoisturePct',
+  'waterLevelCm',
+] as const;
+export type SensorMetric = (typeof SENSOR_METRICS)[number];
+/** Statistics over actual source samples, never an unweighted mean of bucket averages. */
+export function summarizeReadings(
+  readings: ReadingRecord[],
+): Record<SensorMetric, (MetricStats & { count: number }) | null> {
+  return Object.fromEntries(
+    SENSOR_METRICS.map((metric) => {
+      const values = readings
+        .map((reading) => reading[metric])
+        .filter((value): value is number => value != null && Number.isFinite(value));
+      return [metric, values.length ? { ...statsFor(values), count: values.length } : null];
+    }),
+  ) as Record<SensorMetric, (MetricStats & { count: number }) | null>;
 }
 
 function statsFor(values: number[]): MetricStats {
@@ -40,7 +65,7 @@ function round2(value: number): number {
  * padding).
  */
 export function aggregateReadings(readings: ReadingRecord[], bucketMs: number): AggregatedBucket[] {
-  if (bucketMs <= 0) {
+  if (!Number.isFinite(bucketMs) || !Number.isInteger(bucketMs) || bucketMs <= 0) {
     throw new Error('bucketMs must be a positive number');
   }
   if (readings.length === 0) return [];
@@ -66,5 +91,12 @@ export function aggregateReadings(readings: ReadingRecord[], bucketMs: number): 
       humidityPct: statsFor(bucketReadings.map((r) => r.humidityPct)),
       gasPpm: statsFor(bucketReadings.map((r) => r.gasPpm)),
       batteryPct: statsFor(bucketReadings.map((r) => r.batteryPct)),
+      soilMoisturePct: nullableStats(bucketReadings.map((r) => r.soilMoisturePct)),
+      waterLevelCm: nullableStats(bucketReadings.map((r) => r.waterLevelCm)),
     }));
+}
+
+function nullableStats(values: (number | null | undefined)[]): MetricStats | null {
+  const measured = values.filter((v): v is number => v != null);
+  return measured.length ? statsFor(measured) : null;
 }

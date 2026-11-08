@@ -16,6 +16,8 @@ export interface TelemetryReading {
   lat: number;
   lng: number;
   simulatedAlert: boolean;
+  soilMoisturePct?: number | null;
+  waterLevelCm?: number | null;
 }
 
 export interface NodeMeta {
@@ -28,7 +30,9 @@ export interface NodeMeta {
 
 export type Severity = 'normal' | 'warning' | 'alert';
 
-export type MetricName = 'temperatureC' | 'gasPpm' | 'batteryPct';
+export type MetricName =
+  'temperatureC' | 'gasPpm' | 'batteryPct' | 'soilMoisturePct' | 'waterLevelCm';
+export type AlertState = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
 
 export interface RuleBreach {
   metric: MetricName;
@@ -46,6 +50,8 @@ export interface NodeRecord {
   installedAt: string;
   lastSeenAt: string | null;
   status: Severity;
+  communicationHealth?: 'online' | 'stale' | 'offline' | 'never';
+  lastReceivedAt?: string | null;
 }
 
 export interface ReadingRecord {
@@ -59,6 +65,8 @@ export interface ReadingRecord {
   lat: number;
   lng: number;
   severity: Severity;
+  soilMoisturePct?: number | null;
+  waterLevelCm?: number | null;
 }
 
 export interface AlertRecord {
@@ -70,4 +78,15 @@ export interface AlertRecord {
   value: number;
   threshold: number;
   message: string;
+  state: AlertState;
+  updatedAt: string;
+  acknowledgedAt: string | null;
+  resolvedAt: string | null;
+}
+
+export interface AlertEvent {
+  id: number;
+  alertId: number;
+  ts: string;
+  action: 'OPEN' | 'UPDATE' | 'ACKNOWLEDGE' | 'RESOLVE' | 'REOPEN';
 }

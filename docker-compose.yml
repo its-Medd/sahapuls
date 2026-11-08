@@ -2,15 +2,15 @@ services:
   mosquitto:
     image: eclipse-mosquitto:2
     ports:
-      - '1883:1883'
+      - '127.0.0.1:1883:1883'
     volumes:
       - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data
     restart: unless-stopped
-
   simulator:
     build:
-      context: ./simulator
+      context: .
+      dockerfile: simulator/Dockerfile
     depends_on:
       - mosquitto
     environment:
@@ -20,36 +20,37 @@ services:
       PUBLISH_INTERVAL_MS: ${PUBLISH_INTERVAL_MS:-4000}
       ALERT_MODE: ${ALERT_MODE:-random}
       ALERT_PROBABILITY: ${ALERT_PROBABILITY:-0.35}
+      SCENARIO: ${SCENARIO:-random}
     restart: unless-stopped
-
   server:
     build:
-      context: ./server
+      context: .
+      dockerfile: server/Dockerfile
     depends_on:
       - mosquitto
     ports:
-      - '4000:4000'
+      - '127.0.0.1:4000:4000'
     environment:
+      HOST: 0.0.0.0
       PORT: 4000
       MQTT_URL: mqtt://mosquitto:1883
       MQTT_TOPIC_PREFIX: lora
-      DB_PATH: /app/data/dashboard.sqlite
+      DB_PATH: /app/server/data/dashboard.sqlite
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
     volumes:
-      - server-data:/app/data
+      - server-data:/app/server/data
     restart: unless-stopped
-
   web:
     build:
-      context: ./web
+      context: .
+      dockerfile: web/Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:4000}
     ports:
-      - '5173:4173'
+      - '127.0.0.1:5173:80'
     depends_on:
       - server
     restart: unless-stopped
-
 volumes:
   mosquitto-data:
   server-data:

@@ -1,8 +1,8 @@
 {
-  "name": "iot-lora-dashboard",
+  "name": "sahapul",
   "version": "1.0.0",
   "private": true,
-  "description": "Real-time IoT environmental monitoring dashboard for a simulated network of LoRa sensor nodes.",
+  "description": "Environmental IoT Monitoring \u0026 Telemetry Platform.",
   "license": "MIT",
   "workspaces": [
     "simulator",
@@ -13,16 +13,34 @@
     "dev:simulator": "npm run dev --workspace simulator",
     "dev:server": "npm run dev --workspace server",
     "dev:web": "npm run dev --workspace web",
-    "build": "npm run build --workspace server && npm run build --workspace web && npm run build --workspace simulator",
-    "lint": "npm run lint --workspace simulator && npm run lint --workspace server && npm run lint --workspace web",
+    "build": "npm run build --workspace server \u0026\u0026 npm run build --workspace web \u0026\u0026 npm run build --workspace simulator",
+    "lint": "npm run lint --workspace simulator \u0026\u0026 npm run lint --workspace server \u0026\u0026 npm run lint --workspace web",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "npm run test --workspace simulator && npm run test --workspace server && npm run test --workspace web"
+    "test": "npm run test --workspace simulator \u0026\u0026 npm run test --workspace server \u0026\u0026 npm run test --workspace web \u0026\u0026 node --test tests/dev-runner.test.mjs",
+    "typecheck": "npm run typecheck --workspaces",
+    "test:e2e": "playwright test",
+    "dev:broker": "node scripts/broker.mjs",
+    "dev": "node scripts/dev.mjs",
+    "test:startup": "node --test tests/dev-runner.test.mjs"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
+    "@playwright/test": "^1.56.1",
+    "aedes": "^1.2.0",
     "prettier": "^3.3.3"
   },
   "engines": {
-    "node": ">=20"
+    "node": "\u003e=22.12"
+  },
+  "packageManager": "npm@11.21.2",
+  "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.5"
+    }
+  },
+  "allowScripts": {
+    "better-sqlite3@11.10.0": true,
+    "esbuild@0.28.1": true
   }
 }

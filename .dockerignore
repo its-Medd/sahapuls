@@ -1,0 +1,14 @@
+.git
+**/node_modules
+**/dist
+.npm-cache
+.runtime
+test-results
+playwright-report
+**/.env*
+!**/.env.example
+.aws
+.codex
+.agents
+**/data
+**/*.sqlite*

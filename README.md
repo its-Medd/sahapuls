@@ -1,243 +1,262 @@
-# IoT LoRa Dashboard
+# SahaPul
 
-A real-time environmental monitoring dashboard for a fleet of LoRa sensor nodes, built as an
-open-source reference architecture: **simulated sensors → MQTT → a Node/TypeScript backend →
-REST + WebSocket → a React dashboard**.
+**Environmental IoT Monitoring & Telemetry Platform.**
 
-> **This is a simulated-sensor demo, not connected to real hardware.** There is no LoRa radio,
-> gateway, or physical sensor anywhere in this repo. The `simulator/` package generates synthetic
-> telemetry (temperature, humidity, gas/smoke ppm, battery, GPS) and publishes it over MQTT using
-> the same message shape a real LoRaWAN application server would hand off after decoding uplinks.
-> Simulating the sensor layer like this is standard practice for IoT portfolio/reference projects
-> where the interesting engineering is in the ingestion, alerting, and real-time dashboard layers,
-> not in owning a rack of radios. See "Scope & honesty note" below for specifics.
+## Overview
 
-## What this demonstrates
+SahaPul monitors a synthetic environmental sensor network from MQTT ingestion to stored history, alerts and a live React dashboard. It extends the original IoT LoRa Dashboard codebase; original MIT attribution remains intact. No physical LoRa radio, gateway or sensor is connected.
 
-- Ingesting a stream of noisy, semi-realistic device telemetry over MQTT (pub/sub, QoS, retained
-  metadata messages).
-- Turning that stream into persisted history plus live alerting with simple, testable
-  threshold-evaluation logic.
-- Serving both a REST API (historical queries, downsampled/aggregated series) and a WebSocket feed
-  (live readings + alerts) off the same data.
-- A React dashboard that reads live telemetry on a map, per-metric charts, and an alert feed - the
-  kind of operational UI a fleet of environmental sensors actually needs.
+## Problem statement
 
-## Architecture
+Environmental monitoring requires distinguishing abnormal measurements from missing communication, preserving trustworthy history, and tracking alert episodes without creating a new notification every telemetry tick. SahaPul demonstrates these concerns with reproducible synthetic scenarios and testable service boundaries.
+
+## Core features
+
+- Temperature, humidity, gas, battery, coordinates, soil moisture and water level.
+- Overview counts for online/stale/offline stations, open/acknowledged alerts, latest readings, trends and device activity.
+- Searchable device inventory with communication/environment filters and persistent display names.
+- Time-range analytics with device/metric selection, source-sample average/minimum/maximum and measurement counts.
+- OPEN → ACKNOWLEDGED → RESOLVED alert episodes, hysteresis, cooldown and transition history.
+- Validated transactional ingestion, persistent retransmission detection and after-commit realtime events.
+- Historical data filtering/CSV export, confirmed simulator controls and read-only system diagnostics.
+
+Displayed observations and counts come from the backend; missing sensors stay null. Synthetic telemetry is labeled.
+
+## Technical architecture
+
+Independent npm workspaces communicate over MQTT and REST/Socket.IO. The simulator and backend use Node/TypeScript; SQLite is embedded in the backend. The web app preserves the existing React, Leaflet and Recharts implementation. See [architecture](docs/architecture.md).
+
+## Architecture diagram
 
 ```mermaid
 flowchart LR
-    subgraph Sim["simulator/"]
-        N1["Virtual LoRa nodes"]
-    end
-
-    subgraph Broker["mosquitto (MQTT broker)"]
-        T1["lora/&lt;nodeId&gt;/telemetry"]
-        T2["lora/&lt;nodeId&gt;/meta (retained)"]
-    end
-
-    subgraph Server["server/"]
-        V["validate payload (zod)"]
-        E["evaluate alert thresholds"]
-        P["persist to SQLite"]
-        R["REST API"]
-        W["Socket.IO broadcast"]
-    end
-
-    subgraph Web["web/ (React + Vite)"]
-        M["Leaflet map"]
-        C["Recharts charts"]
-        A["Alert feed"]
-    end
-
-    N1 -- publish --> T1
-    N1 -- "publish once, retained" --> T2
-    T1 -- subscribe --> V
-    T2 -- subscribe --> V
-    V --> E --> P
-    P --> R
-    E --> W
-    P --> W
-    R -- "HTTP (history)" --> Web
-    W -- "WebSocket (live)" --> Web
+  S[Virtual sensor fleet] -->|MQTT telemetry + metadata| B[MQTT broker]
+  B --> V[Validate identity and values]
+  V --> T[SQLite transaction + alert lifecycle]
+  T --> A[REST API]
+  T --> W[Socket.IO after commit]
+  A --> U[React dashboard]
+  W --> U
+  U -->|HTTP control| C[Simulator bridge]
+  C -->|MQTT request ID| B
+  S -->|Confirmed state + heartbeat| C
 ```
 
-Data flow, end to end:
+## Technology stack
 
-1. Each virtual node in `simulator/` maintains its own slowly-drifting baseline (temperature,
-   humidity, gas ppm, battery, GPS) and publishes a JSON reading on `lora/<nodeId>/telemetry` every
-   `PUBLISH_INTERVAL_MS`. Node metadata (name, install location) is published once, retained, on
-   `lora/<nodeId>/meta`.
-2. `server/` subscribes to both topics, validates every payload with `zod` (untrusted input off
-   the wire is never trusted blindly), evaluates it against alert thresholds, persists the reading
-   and any resulting alert to SQLite, and broadcasts `reading` / `alert` / `node-status` events
-   over Socket.IO.
-3. `web/` loads history over REST on first load, then patches in live updates from the Socket.IO
-   feed - no polling.
+Node.js 22, npm 11, TypeScript, React 18, Vite 8, Express 4, SQLite/better-sqlite3, MQTT.js, Socket.IO, Zod 4, Tailwind 3, Recharts 2, Leaflet, Aedes for local development, Mosquitto for Compose, Vitest 5, Playwright and axe-core.
 
-## Why SQLite instead of Postgres/TimescaleDB
-
-The `readings` table is laid out in a time-series-friendly way (append-only rows keyed by
-`(node_id, ts)` with a covering index), but the storage engine itself is plain SQLite via
-`better-sqlite3`, not Postgres. For a demo whose entire point is `docker compose up` getting you to
-a working dashboard in a couple of minutes, a single-file embedded database means one fewer
-container to provision, tune, and back up. The query patterns here (latest reading per node,
-time-range scan per node, simple bucketed aggregation) would translate directly onto a Postgres +
-TimescaleDB hypertable if this needed to scale past what a single SQLite file comfortably handles -
-that would be the natural next step for a production version of this architecture, not a redesign.
-
-## Repository layout
-
-```
-simulator/   Node.js + TypeScript. Generates and publishes synthetic sensor telemetry over MQTT.
-server/      Node.js + TypeScript (Express + Socket.IO). MQTT ingest, SQLite persistence,
-             alert evaluation, REST API, WebSocket broadcast.
-web/         React + TypeScript + Vite. Real-time dashboard (map, charts, alert feed).
-mosquitto/   Minimal Mosquitto broker config used by docker-compose.
-```
-
-Each package is independently `npm install`-able (none of them import from one another - they only
-share an MQTT/JSON wire contract) but are wired together as npm workspaces at the root for
-convenience (`npm install` once, run any package's scripts via `--workspace`).
-
-## Quick start (Docker)
-
-Requires Docker and Docker Compose.
-
-```bash
-git clone <this-repo>
-cd iot-lora-dashboard
-docker compose up --build
-```
-
-This starts four containers: `mosquitto` (broker), `simulator` (publishes synthetic telemetry),
-`server` (REST on `:4000` + Socket.IO), and `web` (dashboard on `:5173`, a `vite preview` build -
-see `web/Dockerfile` for why it's not a hot-reloading dev server). Once it's up:
-
-- Dashboard: http://localhost:5173
-- REST API: http://localhost:4000/api/nodes, http://localhost:4000/api/alerts
-- MQTT broker: `localhost:1883`
-
-Override defaults (node count, alert frequency, etc.) by copying `.env.example` to `.env` first.
-
-## Quick start (local dev, no Docker)
-
-Requires Node.js 20+ and a running MQTT broker. If you don't want to install Mosquitto locally,
-the `docker compose up mosquitto` command above will start just the broker.
-
-```bash
-npm install                     # installs all three workspaces
-
-# terminal 1: broker (skip if you already have one running on :1883)
-docker compose up mosquitto
-
-# terminal 2: backend
-cp server/.env.example server/.env
-npm run dev:server
-
-# terminal 3: simulator
-cp simulator/.env.example simulator/.env
-npm run dev:simulator
-
-# terminal 4: frontend
-cp web/.env.example web/.env
-npm run dev:web
-```
-
-Open http://localhost:5173. Within a few seconds of the simulator starting you should see node
-markers appear on the map and readings streaming into the chart. Alert episodes are enabled by
-default (`ALERT_MODE=random` in `simulator/.env.example`) and fire periodically on a random node -
-watch the alert feed and the map marker color change from green to amber to red as one plays out.
-
-## Configuration
-
-Each package documents its own environment variables in `<package>/.env.example`:
-`simulator/.env.example`, `server/.env.example`, `web/.env.example`. The root `.env.example` covers
-the variables `docker-compose.yml` reads (node count, alert frequency, CORS origin, the API URL
-baked into the web build).
+Recharts 2 is retained for compatibility; migrating its deprecated major is future work, not an untested dependency replacement. The scoped minimatch override and npm-generated lock remediate the previous development-tool advisory.
 
 ## Screenshots
 
-Not included in this repo (no fabricated images) - here's what you'd see and how to generate your
-own after running either quick-start above:
+These are real captures of the running project with synthetic data. Before-improvement captures are retained under docs/screenshots/before-submission. Some captures exercise the labeled unavailable-basemap state because external tiles are not guaranteed.
 
-- **Dashboard overview**: open http://localhost:5173. You'll see a Leaflet map of the node fleet
-  (color-coded green/amber/red by status), a per-node metric chart with selectable
-  temperature/gas/battery tabs and warning/alert reference lines, a node list sidebar, and an alert
-  feed. Screenshot the whole window.
-- **An alert in progress**: wait for the simulator's log to print
-  `triggering simulated alert episode on node-XX` (every ~45s by default, see
-  `simulator/.env.example`), then screenshot the map (one marker turns red) and the alert feed
-  (new entries appear in real time).
-- **REST responses**: `curl http://localhost:4000/api/nodes | python3 -m json.tool` or open
-  http://localhost:4000/api/alerts in a browser for raw JSON, if you want an API-shape screenshot
-  instead of the UI.
+![Overview](docs/screenshots/overview-desktop.png)
 
-## Testing
+| Device inventory                                 | Environmental analytics                              |
+| ------------------------------------------------ | ---------------------------------------------------- |
+| ![Devices](docs/screenshots/devices-desktop.png) | ![Analytics](docs/screenshots/analytics-desktop.png) |
 
-```bash
-npm test               # runs simulator, server, and web test suites
-npm run lint            # ESLint across all three packages
-npm run format:check    # Prettier
+| Alert management                               | Simulator controls                                   |
+| ---------------------------------------------- | ---------------------------------------------------- |
+| ![Alerts](docs/screenshots/alerts-desktop.png) | ![Simulator](docs/screenshots/simulator-desktop.png) |
+
+## Project structure
+
+```text
+server/       @sahapul/server — ingestion, SQLite, alerts, API and realtime
+simulator/    @sahapul/simulator — synthetic fleet, scenarios and control
+web/          @sahapul/web — seven monitoring views
+mosquitto/    Compose broker configuration
+scripts/      local broker, supervised development runner, test process helpers
+tests/        root startup integration test and browser E2E suite
+docs/         audit, architecture, protocol, schema, security, verification and screenshots
 ```
 
-- `simulator/test/` covers the noise/clamping helpers and the alert-episode state machine (ramp →
-  hold → decay → back to idle) on the virtual node.
-- `server/test/` is the most substantial suite: pure-function tests for alert-threshold evaluation
-  (`alerts/thresholds.ts`) and time-bucketed aggregation (`alerts/aggregate.ts`), MQTT payload
-  parsing/validation tests, an ingest-pipeline test that exercises persistence + alerting together
-  against an in-memory SQLite database, a supertest-driven REST API test suite, and a Socket.IO
-  test that boots a real `socket.io-client` against a real (ephemeral-port) `socket.io` server to
-  confirm live broadcast actually reaches a connected client. All of it runs offline - no MQTT
-  broker or external database required.
-- `web/test/` covers the pure formatting helpers and a couple of components (`StatusBadge`,
-  `NodeList`) with React Testing Library.
+The old front/ and simulatoor/ directories were safely renamed in the earlier repair. The current workspaces and lock use web/, simulator/ and server/. The broker directory is mosquitto/, matching Compose.
 
-## What was actually verified, and how
+## Requirements
 
-In the interest of not overstating what "done" means for a demo repo:
+Node.js **22.12+**, npm **11.x**, and a browser. Verified locally with Node 22.19.0 and a repository-local npm 11.21.2 runner. Microsoft Edge is used for Windows browser tests when installed; otherwise install Chromium through Playwright. Docker requires its engine to be running.
 
-- **Verified live, end-to-end, with real processes**: a real MQTT broker (not mocked), the actual
-  compiled `simulator` publishing synthetic telemetry, and the actual compiled `server` subscribing,
-  persisting to SQLite, evaluating thresholds, and serving both REST and Socket.IO. This was
-  exercised by hand (curling `/api/nodes`, `/api/nodes/:id/readings` with and without `bucketMs`,
-  `/api/alerts`, and connecting a real `socket.io-client` and observing `node-status`, `reading`,
-  and `alert` events arrive as the simulator ran) and confirmed alert episodes correctly escalate
-  node status from normal → warning → alert and back down as they decay.
-- **Verified via automated tests, run and passing**: all three workspaces' test suites (79 tests
-  total at last count), plus `tsc`/ESLint/Prettier clean, plus production builds succeeding, for
-  all three packages.
-- **Not verified in this environment**: `docker compose up` itself was not run against Docker,
-  because Docker wasn't available in the sandbox this was built in. The Dockerfiles and
-  `docker-compose.yml` were written and reviewed carefully (multi-stage where it matters, explicit
-  `EXPOSE`/`CMD`, environment variables threaded through consistently) but you should treat the
-  Docker path as "should work, please file an issue if it doesn't" rather than "verified" until
-  someone runs it. The MQTT broker used for the live verification above was a real, spec-compliant
-  broker (`aedes`, run standalone via a throwaway Node script), not Mosquitto specifically, since
-  Mosquitto wasn't installable in the sandbox either; the wire protocol is the same and the broker
-  is swappable by design (it's just an `MQTT_URL`), but if you want Mosquitto-specific
-  confirmation, `docker compose up mosquitto` and re-run the local dev steps above.
+## Windows installation
 
-## Known gaps / things a production version would need that this deliberately skips
+In PowerShell at the repository root:
 
-- **Auth**: none. The REST API and Socket.IO feed are unauthenticated, and Mosquitto is configured
-  for anonymous access (see `mosquitto/config/mosquitto.conf`). Fine for a local demo, not fine for
-  anything internet-facing.
-- **TLS**: none, anywhere. MQTT is plaintext, HTTP is plaintext.
-- **Alert de-duplication/hysteresis**: every reading that breaches a threshold raises a new alert
-  row - there's no "already alerting, don't re-alert every tick" suppression window. For a demo
-  this is a feature (you see alerts stream in), but a real deployment would want debouncing.
-- **Single-tenant, single-broker**: no multi-tenancy, no broker clustering/HA story.
-- **No historical data retention/rollup policy**: the SQLite file just grows. Fine for a demo, not
-  for a long-running deployment.
+```powershell
+node --version
+npm --version
+npm install
+npm run dev
+```
 
-## Tech stack
+Use `npm run dev` from the repository root. There is no root `npm start` script; the workspace-specific `npm start` commands below run individual compiled services.
 
-TypeScript everywhere. `simulator` and `server`: Node.js, `mqtt`, (`server` also: Express,
-Socket.IO, `better-sqlite3`, `zod`). `web`: React, Vite, Tailwind CSS, Recharts, Leaflet/
-react-leaflet, socket.io-client. Vitest for tests in all three packages. ESLint (flat config,
-`typescript-eslint`) + Prettier throughout.
+Open **http://127.0.0.1:5173/**. The root runner starts the loopback MQTT broker, backend, simulator and Vite. It reuses existing SahaPul services, refuses unrelated HTTP port conflicts, and stops only processes it started. Ctrl+C uses IPC for orderly backend/simulator shutdown with a bounded termination fallback. The root runner provides Vite hot reload; restart it after backend/simulator source edits.
 
-## License
+For workspace watch mode, use four terminals:
 
-MIT © 2026 Alireza Ghaemitalab - see `LICENSE`.
+```powershell
+npm run dev:broker
+npm run dev:server
+npm run dev:simulator
+npm run dev:web
+```
+
+These are four separate commands/terminals. Both localhost and 127.0.0.1 are accepted for the configured web origin's exact port. External origins remain rejected. Set PORT, WEB_PORT and MQTT_PORT on the root runner to use different ports. An explicit MQTT_URL uses your existing broker.
+
+Compiled services:
+
+```powershell
+npm run build
+npm start --workspace server
+# In another terminal:
+npm start --workspace simulator
+# In another terminal:
+npm run preview --workspace web -- --host 127.0.0.1 --port 5173
+```
+
+Npm 11's dependency install permissions are version-pinned in package.json for the existing better-sqlite3 and esbuild installers. Re-review those pins when upgrading either package. The system npm installation was not changed during this work.
+
+## Docker installation
+
+```powershell
+Copy-Item .env.example .env
+docker compose config
+docker compose up --build
+```
+
+Four services: Mosquitto, simulator, backend and nginx for web assets. Dashboard 127.0.0.1:5173, API 127.0.0.1:4000, MQTT 127.0.0.1:1883. Host-published ports bind loopback. Named volumes preserve SQLite and broker state.
+
+Stop with `docker compose down`; adding --volumes deletes data and is not a routine stop operation. Configuration validation passes. Actual startup was attempted and failed because the Docker engine is unavailable; container builds, Mosquitto startup and volume permissions are not claimed as verified.
+
+If the Docker CLI cannot discover Compose, use the installed plugin directly. Here it is `C:\Program Files\Docker\cli-plugins\docker-compose.exe`.
+
+## Environment configuration
+
+Defaults run without copying templates. Optional per-workspace files:
+
+```powershell
+Copy-Item server/.env.example server/.env
+Copy-Item simulator/.env.example simulator/.env
+Copy-Item web/.env.example web/.env
+```
+
+| Service      | Settings                                                                                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend      | HOST (127.0.0.1), PORT (4000), MQTT_URL, MQTT_USERNAME/PASSWORD, MQTT_TOPIC_PREFIX (lora), DB_PATH, CORS_ORIGIN                                                           |
+| Simulator    | MQTT connection settings; NODE_COUNT (1–1000, default 6); PUBLISH_INTERVAL_MS (250–60000, default 4000); ALERT_MODE; ALERT_PROBABILITY; ALERT_CHECK_INTERVAL_MS; SCENARIO |
+| Frontend     | VITE_API_URL, baked into container builds; default API uses the browser's loopback hostname on port 4000                                                                  |
+| Local runner | PORT, WEB_PORT, MQTT_PORT; optional external MQTT_URL                                                                                                                     |
+| Broker       | MQTT_PORT (1883), loopback-only                                                                                                                                           |
+
+Default workspace database is server/data/dashboard.sqlite. Npm workspace scripts resolve relative DB_PATH from server/. Direct node server/dist/index.js resolves relative paths from your current directory; use an absolute DB_PATH if needed. Root runner child processes use workspace directories. No .env or SQLite file is committed.
+
+## MQTT topic structure
+
+| Topic                   | Delivery                                   |
+| ----------------------- | ------------------------------------------ |
+| lora/{nodeId}/meta      | QoS 1, retained metadata                   |
+| lora/{nodeId}/telemetry | QoS 1, non-retained reading                |
+| lora/simulator/control  | QoS 1, non-retained command with requestId |
+| lora/simulator/status   | Retained confirmed state and heartbeat     |
+
+Topic and payload device IDs must match. Payloads are capped at 16384 bytes. Exact (device, timestamp, sequence) retransmissions are idempotent. Malformed values are rejected; MQTT reconnect does not accumulate application handlers. See [protocol and limits](docs/mqtt-protocol.md).
+
+## Example telemetry payload
+
+Protocol example only:
+
+```json
+{
+  "nodeId": "node-01",
+  "seq": 1,
+  "ts": "2026-11-08T12:00:00.000Z",
+  "temperatureC": 22.5,
+  "humidityPct": 51,
+  "gasPpm": 10,
+  "batteryPct": 92,
+  "soilMoisturePct": 55,
+  "waterLevelCm": 65,
+  "lat": 49.9812,
+  "lng": -119.4012,
+  "simulatedAlert": false
+}
+```
+
+UTC/offset ISO dates normalize to UTC. Finite sensor values, safe sequences, identifiers and coordinates are bounded by Zod. Missing soil/water values remain null; old measurements are not fabricated.
+
+## API reference
+
+| Method      | Path                        | Behavior                                                                              |
+| ----------- | --------------------------- | ------------------------------------------------------------------------------------- |
+| GET         | /api/health/live            | HTTP liveness, independent of broker/database                                         |
+| GET         | /api/health/ready           | 200 only when SQLite probe succeeds and MQTT is connected; otherwise 503              |
+| GET         | /api/health                 | Version, liveness, readiness and separate SQLite/MQTT/simulator components            |
+| GET         | /api/summary                | Actual stored sample count, active/open/acknowledged alerts and latest readings       |
+| GET         | /api/nodes                  | Devices and independent environmental/communication states                            |
+| GET / PATCH | /api/nodes/:id              | Read a device / update its display name                                               |
+| GET         | /api/nodes/:id/readings     | ISO from/to, limit 1–5000, optional bucketMs                                          |
+| GET         | /api/nodes/:id/analytics    | ISO from/to, bucketMs; full-window source statistics and buckets                      |
+| GET         | /api/alerts                 | Optional nodeId, state and limit 1–5000                                               |
+| POST        | /api/alerts/:id/acknowledge | Idempotent acknowledgment; 409 after resolution                                       |
+| GET         | /api/alerts/:id/history     | Stored lifecycle transitions                                                          |
+| GET         | /api/settings               | Thresholds, recovery margins, cooldown and communication policy                       |
+| GET / POST  | /api/simulator              | Read confirmed status / apply running, scenario and intervalMs with MQTT confirmation |
+
+Raw history returns newest 500 by default, maximum 5000, in chronological order; from/to are inclusive. Aggregation and analytics accept up to 50000 source samples and return 422 for larger ranges instead of truncating statistics. Analytics means are computed from measured source values, not averaged bucket means; missing sensors have no statistic. bucketMs is 1–2592000000.
+
+The simulator is optional for readiness: pausing it does not make stored history unavailable. Socket.IO emits reading, alert transitions, node-status (environmental compatibility event) and full node records. Unknown devices return 404; invalid inputs 400; unavailable controls 503; unconfirmed controls 504.
+
+## Database information
+
+SQLite schema version 1: nodes, readings, alerts, alert_events. WAL on disk, foreign-key enforcement, busy timeout, parameterized queries, insertion constraints and persistent reading identity. Related ingestion writes commit atomically before events are emitted.
+
+Automatic additive migrations preserve existing tables and rows. No schema change is introduced in the submission refinement. Latest-reading queries are anchored to devices rather than executing a correlated lookup per historical sample.
+
+```powershell
+npm run migrate --workspace server
+```
+
+Back up valuable data before migration. See [schema and backup notes](docs/database-schema.md).
+
+## Running tests
+
+```powershell
+npm install
+npm ls
+npm run
+npm test
+npm run lint
+npm run typecheck
+npm run build
+npm run format:check
+npm run test:e2e
+```
+
+npm test runs every workspace plus an isolated startup/reuse/shutdown test. npm run test:startup runs that integration test alone. Build before browser E2E, which uses compiled services. If Edge is unavailable: `npx playwright install chromium`.
+
+Tests use separate brokers, ports and temporary databases; they do not reset the user's database. Real-broker MQTT, real Socket.IO and actual browser flows are included. Exact current results and limits are in [testing.md](docs/testing.md).
+
+## Security boundaries
+
+Local-first, synthetic data; no accounts, customer profiles or personal-data collection. Loopback ports, exact origin checks, bounded validation, parameterized SQL and explicit native install-script approvals are implemented. The scoped minimatch security override is tested with the existing TypeScript tooling; the current dependency scan is recorded in [security-review.md](docs/security-review.md).
+
+Authentication, authorization, per-device MQTT ACLs, TLS, rate/connection quotas and a retention/backup service are not implemented. Do not expose the demo publicly. This project is not production security certification.
+
+## Current limitations
+
+External map tiles can fail; the UI labels the unavailable basemap and retains station markers/list. Alert UI shows the newest 100 episodes, history the newest 5000 selected-window samples, analytics at most 50000. No physical sensor/gateway, multi-tenant deployment, long-duration soak or cross-browser certification is claimed. Docker startup requires verification on a running engine.
+
+Three genuine low-severity original formatting/readability defects remain deliberately documented: relative-time boundary rounding, invalid relative-time fallback, and clock-only multi-day overview ticks. Analytics has its own date-aware ticks. See [open bug exercises](docs/open-bug-tasks.md).
+
+## Engineering roadmap
+
+[Initial audit](docs/initial-audit.md) · [Technical audit](docs/technical-audit.md) · [Architecture](docs/architecture.md) · [MQTT protocol](docs/mqtt-protocol.md) · [Backlog](docs/engineering-backlog.md) · [Submission report](docs/submission-report.md).
+
+Priority future work: real deployment identity/TLS/ACLs, backup/retention, Mosquitto/container verification, Recharts migration, expanded browser/soak coverage, and physical-device provisioning if hardware enters scope.
+
+## License and attribution
+
+MIT © 2026 Alireza Ghaemitalab — original [LICENSE](LICENSE) preserved unchanged. [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) records the evidence, modifications and dependency/asset notices. No original attribution is replaced and no private permission correspondence is published.

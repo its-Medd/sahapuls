@@ -8,6 +8,10 @@ export interface Thresholds {
   /** Battery is inverted: a LOW value is bad, so "warning"/"alert" are upper bounds the value must fall at or below. */
   batteryWarningPct: number;
   batteryAlertPct: number;
+  soilWarningPct: number;
+  soilAlertPct: number;
+  waterWarningCm: number;
+  waterAlertCm: number;
 }
 
 export const DEFAULT_THRESHOLDS: Thresholds = {
@@ -17,6 +21,10 @@ export const DEFAULT_THRESHOLDS: Thresholds = {
   gasAlertPpm: 400,
   batteryWarningPct: 20,
   batteryAlertPct: 10,
+  soilWarningPct: 25,
+  soilAlertPct: 15,
+  waterWarningCm: 20,
+  waterAlertCm: 10,
 };
 
 export interface ThresholdEvaluation {
@@ -96,7 +104,10 @@ function evaluateLowerBound(
  * (REST layer, MQTT ingest pipeline, or an offline batch job).
  */
 export function evaluateThresholds(
-  reading: Pick<TelemetryReading, 'temperatureC' | 'gasPpm' | 'batteryPct'>,
+  reading: Pick<
+    TelemetryReading,
+    'temperatureC' | 'gasPpm' | 'batteryPct' | 'soilMoisturePct' | 'waterLevelCm'
+  >,
   thresholds: Thresholds = DEFAULT_THRESHOLDS,
 ): ThresholdEvaluation {
   const breaches: RuleBreach[] = [];
@@ -127,6 +138,26 @@ export function evaluateThresholds(
     '%',
   );
   if (batteryBreach) breaches.push(batteryBreach);
+  if (reading.soilMoisturePct != null) {
+    const breach = evaluateLowerBound(
+      'soilMoisturePct',
+      reading.soilMoisturePct,
+      thresholds.soilWarningPct,
+      thresholds.soilAlertPct,
+      '%',
+    );
+    if (breach) breaches.push(breach);
+  }
+  if (reading.waterLevelCm != null) {
+    const breach = evaluateLowerBound(
+      'waterLevelCm',
+      reading.waterLevelCm,
+      thresholds.waterWarningCm,
+      thresholds.waterAlertCm,
+      'cm',
+    );
+    if (breach) breaches.push(breach);
+  }
 
   return {
     severity: highestSeverity(breaches.map((b) => b.severity)),
