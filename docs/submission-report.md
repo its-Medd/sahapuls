@@ -41,7 +41,7 @@ Node 22.19.0 and local npm 11.21.2 are used; the system npm 10 installation was 
 
 Updated README with the requested product subtitle, problem, actual architecture diagram, stack, real screenshots, structure, requirements, Windows/Docker commands, environment variables, protocol example, API, schema, tests, boundaries, limitations, roadmap and attribution. Added initial-audit.md, mqtt-protocol.md and THIRD_PARTY_NOTICES.md. Updated design/interaction contracts, technical audit, security review, testing record, backlog and retained exercise labels.
 
-The original MIT license identifies Alireza Ghaemitalab and permits modification under its terms. The configured current repository is its-Medd/sahapuls; a distinct original upstream URL was not available and is not invented. No private authorization correspondence or contact details are included.
+The original MIT license identifies Mohamed Belmaizi and permits modification under its terms. The configured current repository is its-Medd/sahapuls; a distinct original upstream URL was not available and is not invented. No private authorization correspondence or contact details are included.
 
 ## Modified areas
 

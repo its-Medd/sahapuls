@@ -259,4 +259,4 @@ Priority future work: real deployment identity/TLS/ACLs, backup/retention, Mosqu
 
 ## License and attribution
 
-MIT © 2026 Alireza Ghaemitalab — original [LICENSE](LICENSE) preserved unchanged. [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) records the evidence, modifications and dependency/asset notices. No original attribution is replaced and no private permission correspondence is published.
+MIT © 2026 Mohamed Belmaizi — original [LICENSE](LICENSE) preserved unchanged. [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) records the evidence, modifications and dependency/asset notices. No original attribution is replaced and no private permission correspondence is published.

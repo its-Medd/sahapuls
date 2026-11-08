@@ -25,4 +25,4 @@ MQTT identity validation, finite/ranged payload validation, message-size limits,
 
 The saved prior security report contains seven moderate development-tool findings propagated from minimatch. Recheck the live advisory tree and make only a scoped, tested remediation. Production authentication, TLS, device ACLs, retention and physical radio integration remain outside this local synthetic-data scope.
 
-The unchanged LICENSE identifies Alireza Ghaemitalab and the MIT grant. The configured Git remote is its-Medd/sahapuls. An upstream origin URL or separate permission correspondence has not been supplied; do not invent either. Record the evidence and attribution without publishing private details.
+The unchanged LICENSE identifies Mohamed Belmaizi and the MIT grant. The configured Git remote is its-Medd/sahapuls. An upstream origin URL or separate permission correspondence has not been supplied; do not invent either. Record the evidence and attribution without publishing private details.

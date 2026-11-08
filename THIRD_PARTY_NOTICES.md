@@ -2,7 +2,7 @@
 
 ## Original license evidence
 
-The original LICENSE in this checkout is MIT and identifies **Copyright (c) 2026 Alireza Ghaemitalab**. The full license is preserved unchanged in [LICENSE](LICENSE). Its grant permits use, copying, modification and distribution subject to its terms, including retention of the copyright and permission notice. This file does not replace those terms.
+The original LICENSE in this checkout is MIT and identifies **Copyright (c) 2026 Mohamed Belmaizi**. The full license is preserved unchanged in [LICENSE](LICENSE). Its grant permits use, copying, modification and distribution subject to its terms, including retention of the copyright and permission notice. This file does not replace those terms.
 
 The configured repository is [its-Medd/sahapuls](https://github.com/its-Medd/sahapuls). The earlier README identified the base project as IoT LoRa Dashboard. A distinct original upstream URL has not been established from the available repository evidence and is not invented here. The supplied MIT grant is the recorded basis for modification; no ownership transfer, endorsement, separate private authorization or unpublished correspondence is asserted. No private contact information or correspondence is included.
 
