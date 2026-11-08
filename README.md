@@ -1,10 +1,32 @@
 # SahaPul
-## Technologies Used
+<div align="center">
 
-[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
-[![MQTT](https://img.shields.io/badge/MQTT-3C00A0?style=for-the-badge&logo=mqtt&logoColor=white)](https://mqtt.org/)
-[![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+# SahaPul
+
+![](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)
+![](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)
+![](https://img.shields.io/badge/SQLite-07405e?style=for-the-badge&logo=sqlite&logoColor=white)
+![](https://img.shields.io/badge/MQTT-3C00A0?style=for-the-badge&logo=mqtt&logoColor=white)
+![](https://img.shields.io/badge/Socket.io-010101?style=for-the-badge&logo=socket.io&logoColor=white)
+![](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![](https://img.shields.io/badge/Docker-2CA5E0?style=for-the-badge&logo=docker&logoColor=white)
+![](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+
+### Environmental IoT Monitoring & Telemetry Platform
+
+</div>
+
+---
+
+<div align="center">
+
+## Overview
+
+SahaPul monitors a synthetic environmental sensor network from MQTT ingestion to stored history, alerts and a live React dashboard. It extends the original IoT LoRa Dashboard codebase; original MIT attribution remains intact. No physical LoRa radio, gateway or sensor is connected.
+
+</div>
 
 **Environmental IoT Monitoring & Telemetry Platform.**
 
