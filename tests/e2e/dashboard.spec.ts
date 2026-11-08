@@ -236,11 +236,14 @@ test('device inventory search and health filters provide clear, resettable resul
 test('analytics uses range-aware backend statistics and handles missing windows', async ({
   page,
 }) => {
-  const response = page.waitForResponse(
-    (response) => response.url().includes('/analytics?') && response.status() === 200,
-  );
-  const data = await (await response).json();
-  await page.goto('/#analytics');
+  // Register the waiter before navigation so even a fast analytics response is captured.
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (response) => response.url().includes('/analytics?') && response.status() === 200,
+    ),
+    page.goto('/#analytics'),
+  ]);
+  const data = await response.json();
   await expect(page.locator('.analytics-statistics>div').first().locator('strong')).toContainText(
     String(data.statistics.temperatureC.avg),
   );
