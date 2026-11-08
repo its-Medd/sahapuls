@@ -1,4 +1,10 @@
 # SahaPul
+## Technologies Used
+
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![MQTT](https://img.shields.io/badge/MQTT-3C00A0?style=for-the-badge&logo=mqtt&logoColor=white)](https://mqtt.org/)
+[![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 
 **Environmental IoT Monitoring & Telemetry Platform.**
 
