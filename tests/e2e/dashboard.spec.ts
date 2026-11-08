@@ -239,8 +239,8 @@ test('analytics uses range-aware backend statistics and handles missing windows'
   const response = page.waitForResponse(
     (response) => response.url().includes('/analytics?') && response.status() === 200,
   );
-  await page.goto('/#analytics');
   const data = await (await response).json();
+  await page.goto('/#analytics');
   await expect(page.locator('.analytics-statistics>div').first().locator('strong')).toContainText(
     String(data.statistics.temperatureC.avg),
   );

@@ -62,6 +62,10 @@ These are real captures of the running project with synthetic data. Before-impro
 | ---------------------------------------------- | ---------------------------------------------------- |
 | ![Alerts](docs/screenshots/alerts-desktop.png) | ![Simulator](docs/screenshots/simulator-desktop.png) |
 
+| Historical readings                              | System settings                                    |
+| ------------------------------------------------ | -------------------------------------------------- |
+| ![History](docs/screenshots/history-desktop.png) | ![Settings](docs/screenshots/settings-desktop.png) |
+
 ## Project structure
 
 ```text
