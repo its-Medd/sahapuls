@@ -133,11 +133,15 @@ test('history exports measured data and all views remain usable at narrow width'
   await page.screenshot({ path: 'docs/screenshots/overview-desktop.png', fullPage: true });
 });
 test('failure, retry, loading and empty states are explicit', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.connection')).toHaveText(/Live feed connected/);
+  await expect(page.getByRole('button', { name: /QA field station/ })).toBeVisible();
   await page.route(`${API}/api/nodes`, (route) =>
     route.fulfill({ status: 503, json: { error: 'Test service unavailable' } }),
   );
-  await page.goto('/');
-  await expect(page.getByText('Test service unavailable')).toBeVisible();
+  await page.getByRole('link', { name: 'Devices', exact: true }).click();
+  await page.getByRole('button', { name: 'Refresh stations' }).click();
+  await expect(page.getByText('Test service unavailable').first()).toBeVisible();
   await page.unroute(`${API}/api/nodes`);
   await page.getByRole('button', { name: 'Retry', exact: true }).first().click();
   await expect(page.getByRole('button', { name: /QA field station/ })).toBeVisible();
